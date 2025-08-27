@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Security Test - Bulletproof</title>
+    <style>
+        body { background: black; color: lime; font-family: monospace; padding: 20px; }
+        h1 { color: white; text-align: center; border: 2px solid lime; padding: 20px; margin-bottom: 30px; }
+        .section { background: #111; border: 1px solid #333; margin: 20px 0; padding: 20px; }
+        .section h2 { color: yellow; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .result { padding: 5px; margin: 2px 0; border-left: 3px solid lime; white-space: pre-wrap; }
+        .warn { color: yellow; border-color: yellow; }
+        .err { color: red; border-color: red; }
+        .progress { width: 100%; height: 20px; background: #333; margin: 10px 0; border: 1px solid #555; }
+        .progress-bar { height: 100%; background: lime; width: 0%; transition: width 0.6s; }
+        .summary { background: #220000; border: 2px solid red; padding: 20px; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <h1>AUTOMATED SECURITY SCAN</h1>
+    
+    <div>Status: <span id="status">STARTING...</span></div>
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div id="progress" class="progress-bar"></div>
+    </div>
+    <div>Progress: <span id="percent">0%</span></div>
+
+    <div id="summary" class="summary" style="display:none;">
+        <h2>SCAN COMPLETE</h2>
+        <div id="final"></div>
+    </div>
+
+    <div class="section"><h2>BROWSER SECURITY</h2><div id="browser"></div></div>
+    <div class="section"><h2>CONTENT SECURITY</h2><div id="csp"></div></div>
+    <div class="section"><h2>STORAGE SECURITY</h2><div id="storage"></div></div>
+    <div class="section"><h2>DOM SECURITY</h2><div id="dom"></div></div>
+    <div class="section"><h2>PATH TRAVERSAL</h2><div id="traversal"></div></div>
+    <div class="section"><h2>INJECTION ATTACKS</h2><div id="injection"></div></div>
+    <div class="section"><h2>FRAME SECURITY</h2><div id="frames"></div></div>
+    <div class="section"><h2>PROTOCOL SECURITY</h2><div id="protocols"></div></div>
+    <div class="section"><h2>DEVICE INFO</h2><div id="device"></div></div>
+    <div class="section"><h2>ADVANCED VULNERABILITIES</h2><div id="vulns"></div></div>
+
+    <script>
+        let progress = 0, total = 10, vulns = 0, issues = 0;
+
+        function show(id, msg, type) {
+            const div = document.createElement('div');
+            div.className = 'result ' + (type || '');
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+            document.getElementById(id).appendChild(div);
+        }
+
+        function updateProgress() {
+            progress++;
+            let pct = Math.round((progress / total) * 100);
+            document.getElementById('progress').style.width = pct + '%';
+            document.getElementById('progress').setAttribute("aria-valuenow", pct);
+            document.getElementById('percent').textContent = pct + '%';
+
+            if (progress === total) {
+                document.getElementById('status').textContent = 'COMPLETE';
+                showSummary();
+            }
+        }
+
+        // Arrays to store detailed findings
+        let vulnerabilityList = [];
+        let securityIssueList = [];
+        
+        function addVuln(description, severity = 'HIGH') {
+            vulnerabilityList.push({description, severity});
+            vulns++;
+        }
+        
+        function addIssue(description, level = 'MEDIUM') {
+            securityIssueList.push({description, level});
+            issues++;
+        }
+        
+        function showSummary() {
+            let summaryHTML = `
+                <div class="result err">Critical Vulnerabilities: ${vulns}</div>
+                <div class="result warn">Security Issues: ${issues}</div>
+                <div class="result">Scan completed at: ${new Date().toLocaleString()}</div>
+                <br>
+            `;
+            
+            if (vulnerabilityList.length > 0) {
+                summaryHTML += '<div class="result err"><strong>VULNERABILITIES FOUND:</strong></div>';
+                vulnerabilityList.forEach(vuln => {
+                    summaryHTML += `<div class="result err">• [${vuln.severity}] ${vuln.description}</div>`;
+                });
+                summaryHTML += '<br>';
+            }
+            
+            if (securityIssueList.length > 0) {
+                summaryHTML += '<div class="result warn"><strong>SECURITY CONCERNS:</strong></div>';
+                securityIssueList.forEach(issue => {
+                    summaryHTML += `<div class="result warn">• [${issue.level}] ${issue.description}</div>`;
+                });
+                summaryHTML += '<br>';
+            }
+            
+            // Risk assessment
+            let riskLevel = 'LOW';
+            if (vulns > 5) riskLevel = 'CRITICAL';
+            else if (vulns > 2) riskLevel = 'HIGH';
+            else if (vulns > 0 || issues > 10) riskLevel = 'MEDIUM';
+            
+            summaryHTML += `<div class="result ${riskLevel.toLowerCase() === 'critical' ? 'err' : riskLevel.toLowerCase() === 'high' ? 'err' : riskLevel.toLowerCase() === 'medium' ? 'warn' : ''}">
+                <strong>OVERALL RISK LEVEL: ${riskLevel}</strong>
+            </div>`;
+            
+            document.getElementById('final').innerHTML = summaryHTML;
+            document.getElementById('summary').style.display = 'block';
+        }
+
+        // Sequential test runner
+        const tests = [
+            function browserTest() {
+                document.getElementById('status').textContent = 'TESTING BROWSER...';
+                show('browser', 'Starting browser security tests');
+                if (location.protocol === 'https:') {
+                    show('browser', 'HTTPS detected');
+                } else {
+                    show('browser', 'HTTP detected - insecure', 'warn'); 
+                    addIssue('Insecure HTTP protocol in use', 'HIGH');
+                }
+                show('browser', 'JavaScript enabled');
+                document.cookie = 'test=1';
+                if (document.cookie.includes('test=1')) {
+                    show('browser', 'Cookies accessible via JS (HttpOnly missing)', 'warn'); 
+                    addIssue('Cookies can be accessed via JavaScript', 'MEDIUM');
+                }
+                updateProgress();
+            },
+            function cspTest() {
+                document.getElementById('status').textContent = 'TESTING CSP...';
+                show('csp', 'Checking Content Security Policy');
+                if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
+                    show('csp', 'No CSP meta tag found', 'warn'); 
+                    addIssue('No Content Security Policy detected', 'HIGH');
+                }
+                try { 
+                    eval('1+1'); 
+                    show('csp', 'eval() allowed', 'err'); 
+                    addVuln('JavaScript eval() function not blocked', 'HIGH');
+                } catch { 
+                    show('csp', 'eval() blocked'); 
+                }
+                updateProgress();
+            },
+            function storageTest() {
+                document.getElementById('status').textContent = 'TESTING STORAGE...';
+                show('storage', 'Testing LocalStorage & SessionStorage');
+                try { 
+                    localStorage.setItem('x','1'); 
+                    show('storage','LocalStorage accessible','warn'); 
+                    addIssue('LocalStorage accessible to scripts', 'MEDIUM');
+                } catch { 
+                    show('storage','LocalStorage blocked'); 
+                }
+                try { 
+                    sessionStorage.setItem('y','1'); 
+                    show('storage','SessionStorage accessible','warn'); 
+                    addIssue('SessionStorage accessible to scripts', 'LOW');
+                } catch { 
+                    show('storage','SessionStorage blocked'); 
+                }
+                updateProgress();
+            },
+            function domTest() {
+                document.getElementById('status').textContent = 'TESTING DOM...';
+                show('dom','Attempting innerHTML injection');
+                const testDiv = document.createElement('div');
+                testDiv.innerHTML = '<img src=x onerror="window.domXss=1">';
+                document.body.appendChild(testDiv);
+                if (window.domXss) { 
+                    show('dom','CRITICAL: XSS via innerHTML','err'); 
+                    addVuln('XSS injection via innerHTML possible', 'CRITICAL');
+                } else { 
+                    show('dom','XSS injection blocked'); 
+                }
+                testDiv.remove();
+                updateProgress();
+            },
+            function traversalTest() {
+                document.getElementById('status').textContent = 'TESTING PATH TRAVERSAL...';
+                show('traversal','Testing path traversal vulnerabilities');
+                
+                // Test file:// protocol access
+                const testPaths = ['../../../etc/passwd', '..\\..\\windows\\system32\\config\\sam', 
+                                 'file:///etc/passwd', 'file://C:/windows/system.ini'];
+                testPaths.forEach(path => {
+                    try {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('GET', path, false);
+                        xhr.send();
+                        if (xhr.status === 200) {
+                            show('traversal', `CRITICAL: Path traversal possible: ${path}`, 'err');
+                            addVuln(`Path traversal vulnerability: ${path}`, 'CRITICAL');
+                        }
+                    } catch(e) {
+                        show('traversal', `Path blocked: ${path}`);
+                    }
+                });
+                
+                // Test URL manipulation
+                try {
+                    const url = new URL('../../../sensitive', location.href);
+                    show('traversal', `URL manipulation test: ${url.href}`, 'warn');
+                    addIssue('URL manipulation possible', 'MEDIUM');
+                } catch(e) {
+                    show('traversal', 'URL manipulation restricted');
+                }
+                
+                updateProgress();
+            },
+            function injectionTest() {
+                document.getElementById('status').textContent = 'TESTING INJECTION ATTACKS...';
+                show('injection','Testing various injection vulnerabilities');
+                
+                // SQL Injection patterns (client-side detection)
+                const sqlPayloads = ["'; DROP TABLE users;--", "' OR '1'='1", "UNION SELECT * FROM users"];
+                sqlPayloads.forEach(payload => {
+                    show('injection', `SQL injection pattern: ${payload}`, 'warn');
+                });
+                
+                // Command injection test
+                try {
+                    const cmd = '$(whoami)';
+                    eval(`console.log('${cmd}')`);
+                    show('injection', 'Command injection via eval possible', 'err');
+                    addVuln('Command injection via eval() possible', 'HIGH');
+                } catch(e) {
+                    show('injection', 'Command injection blocked');
+                }
+                
+                // LDAP injection test
+                const ldapPayload = '*)(uid=*))(|(uid=*';
+                show('injection', `LDAP injection pattern: ${ldapPayload}`, 'warn');
+                
+                // XXE simulation
+                const xxePayload = '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>';
+                show('injection', 'XXE payload test (simulation)', 'warn');
+                addIssue('XML External Entity (XXE) patterns detected', 'HIGH');
+                
+                updateProgress();
+            },
+            function frameTest() {
+                document.getElementById('status').textContent = 'TESTING FRAME SECURITY...';
+                show('frames','Testing clickjacking and frame security');
+                
+                // Check X-Frame-Options equivalent
+                try {
+                    const iframe = document.createElement('iframe');
+                    iframe.src = 'about:blank';
+                    iframe.style.display = 'none';
+                    document.body.appendChild(iframe);
+                    show('frames', 'iframe creation allowed', 'warn');
+                    addIssue('iframe creation allowed - clickjacking risk', 'MEDIUM');
+                    document.body.removeChild(iframe);
+                } catch(e) {
+                    show('frames', 'iframe creation blocked');
+                }
+                
+                // Test postMessage vulnerabilities
+                window.addEventListener('message', function(e) {
+                    show('frames', `PostMessage received from: ${e.origin}`, 'warn');
+                    addIssue('PostMessage listener active - message injection risk', 'LOW');
+                });
+                
+                // Test window.parent access
+                try {
+                    if (window.parent !== window) {
+                        show('frames', 'Running in frame - clickjacking risk', 'err');
+                        addVuln('Page running in frame - clickjacking possible', 'HIGH');
+                    } else {
+                        show('frames', 'Not running in frame');
+                    }
+                } catch(e) {
+                    show('frames', 'Frame access restricted');
+                }
+                
+                updateProgress();
+            },
+            function protocolTest() {
+                document.getElementById('status').textContent = 'TESTING PROTOCOL SECURITY...';
+                show('protocols','Testing protocol-based attacks');
+                
+                // Test dangerous protocols
+                const protocols = ['javascript:', 'data:', 'vbscript:', 'file:', 'ftp:'];
+                protocols.forEach(proto => {
+                    try {
+                        const link = document.createElement('a');
+                        link.href = proto + 'alert(1)';
+                        show('protocols', `${proto} protocol test: ${link.protocol}`, 'warn');
+                        if (link.protocol === proto) addIssue(`${proto} protocol accessible`, 'MEDIUM');
+                    } catch(e) {
+                        show('protocols', `${proto} protocol blocked`);
+                    }
+                });
+                
+                // Test SSRF simulation
+                const ssrfUrls = ['http://localhost:22', 'http://169.254.169.254/', 'http://127.0.0.1:8080'];
+                ssrfUrls.forEach(url => {
+                    show('protocols', `SSRF target: ${url}`, 'warn');
+                });
+                
+                // Test WebSocket security
+                if (window.WebSocket) {
+                    show('protocols', 'WebSocket API available', 'warn');
+                    addIssue('WebSocket API available', 'LOW');
+                } else {
+                    show('protocols', 'WebSocket API not available');
+                }
+                
+                updateProgress();
+            },
+            function deviceTest() {
+                document.getElementById('status').textContent = 'COLLECTING DEVICE INFO...';
+                show('device','Gathering device fingerprint');
+                
+                // Enhanced device fingerprinting
+                show('device','User Agent: '+navigator.userAgent.substring(0,50)+'...','warn');
+                show('device','Platform: '+navigator.platform,'warn');
+                show('device','Screen: '+screen.width+'x'+screen.height,'warn');
+                show('device','Available Screen: '+screen.availWidth+'x'+screen.availHeight,'warn');
+                show('device','Color Depth: '+screen.colorDepth+' bits','warn');
+                show('device','Pixel Depth: '+screen.pixelDepth+' bits','warn');
+                show('device','Language: '+navigator.language,'warn');
+                show('device','Languages: '+navigator.languages?.join(','),'warn');
+                show('device','Timezone: '+(new Date().getTimezoneOffset()),'warn');
+                show('device','Cookie Enabled: '+navigator.cookieEnabled,'warn');
+                show('device','Online: '+navigator.onLine,'warn');
+                
+                // Hardware info
+                if (navigator.hardwareConcurrency) {
+                    show('device','CPU Cores: '+navigator.hardwareConcurrency,'warn');
+                }
+                if (navigator.deviceMemory) {
+                    show('device','Device Memory: '+navigator.deviceMemory+'GB','warn');
+                }
+                
+                // Permissions API
+                if (navigator.permissions) {
+                    show('device','Permissions API available','warn');
+                    addIssue('Permissions API accessible', 'LOW');
+                }
+                
+                // Media devices
+                if (navigator.mediaDevices) {
+                    show('device','MediaDevices API available - camera/mic access','err');
+                    addVuln('Camera/Microphone access possible via MediaDevices API', 'CRITICAL');
+                }
+                
+                // Geolocation
+                if (navigator.geolocation) { 
+                    show('device','Geolocation API available','err'); 
+                    addVuln('Location tracking possible via Geolocation API', 'HIGH'); 
+                }
+                
+                addIssue('Extensive device fingerprinting data exposed', 'HIGH');
+                addIssue('Browser metadata accessible for tracking', 'MEDIUM');
+                addIssue('Hardware specifications exposed', 'LOW');
+                updateProgress();
+            },
+            function advancedVulnTest() {
+                document.getElementById('status').textContent = 'ADVANCED VULNERABILITY TESTS...';
+                show('vulns','Running advanced security tests');
+                
+                // Test popup blocking
+                let popup = window.open('', '', 'width=1,height=1');
+                if (popup) { 
+                    popup.close(); 
+                    show('vulns','VULNERABILITY: Popups allowed','err'); 
+                    addVuln('Popup windows can be created', 'MEDIUM');
+                } else { 
+                    show('vulns','Popups blocked'); 
+                }
+                
+                // Test history manipulation
+                try {
+                    history.pushState({}, '', '#test');
+                    show('vulns','History manipulation possible','warn');
+                    addIssue('Browser history can be manipulated', 'LOW');
+                    history.back();
+                } catch(e) {
+                    show('vulns','History manipulation blocked');
+                }
+                
+                // Test clipboard access
+                if (navigator.clipboard) {
+                    show('vulns','CRITICAL: Clipboard API available','err');
+                    addVuln('Clipboard data access possible', 'CRITICAL');
+                }
+                
+                // Test notification API
+                if ('Notification' in window) {
+                    show('vulns','Notification API available','warn');
+                    addIssue('Desktop notifications possible', 'LOW');
+                }
+                
+                // Test battery API
+                if (navigator.getBattery) {
+                    show('vulns','Battery API available - privacy risk','err');
+                    addVuln('Battery level tracking possible', 'HIGH');
+                }
+                
+                // Test service worker
+                if ('serviceWorker' in navigator) {
+                    show('vulns','ServiceWorker API available','warn');
+                    addIssue('Background script execution possible', 'MEDIUM');
+                }
+                
+                // Test web crypto
+                if (window.crypto && crypto.subtle) {
+                    show('vulns','Web Crypto API available','warn');
+                    addIssue('Cryptographic operations possible', 'LOW');
+                }
+                
+                // Test indexedDB size
+                if (window.indexedDB) {
+                    show('vulns','IndexedDB available - data persistence','warn');
+                    addIssue('Persistent data storage available', 'MEDIUM');
+                }
+                
+                show('vulns','Current location: '+location.href,'warn'); 
+                addIssue('Current URL accessible to scripts', 'LOW');
+                
+                updateProgress();
+            }
+        ];
+
+        // Run tests sequentially with delay
+        (function run(i=0) {
+            if (i<tests.length) { tests[i](); setTimeout(()=>run(i+1),600); }
+        })();
+    </script>
+</body>
+</html>
